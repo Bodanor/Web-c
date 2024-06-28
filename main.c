@@ -6,14 +6,14 @@
 #include <signal.h>
 
 #include "socket.h"
-#include "http.h"
+#include "http_requests.h"
 #define PORT 8000
 
 void intHandler(int signum);
 
 void intHandler(int signum)
 {
-	printf("Gracefully shuting down the server...\n");
+	printf("Gracefully shutting down the server...\n");
 	pthread_exit(0);
 }
 int main(int argc, char *argv[])
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	while (1){
 		client = accept_client(server_socket);
 		if (client != NULL) {
-			pthread_create(&thread_handle1, NULL, (void*(*)(void*))http_thread_handler, client);
+			pthread_create(&thread_handle1, NULL, (void*(*)(void*))http_request_client_handler, client);
 			pthread_detach(thread_handle1);
 		}
 	}

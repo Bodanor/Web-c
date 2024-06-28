@@ -1,10 +1,12 @@
-#include "http.h"
-#include "socket.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "http_requests.h"
+#include "http_response.h"
+#include "socket.h"
 
 static int parse_path(struct http_header_t *header, char *raw_header);
 static int parse_http_version(struct http_header_t *header, char *raw_header);
@@ -128,7 +130,7 @@ static int read_header(int client_socket, char **header)
 
 
 }
-void *http_thread_handler(void *client_structure)
+void *http_request_client_handler(void *client_structure)
 {
 	struct http_header_t *header;
 	struct client_t *client;
@@ -151,6 +153,9 @@ void *http_thread_handler(void *client_structure)
 	else if (header_error_code == -2) {
 		/* Send Malformated error page */
 	}
+
+	handle_response(header, client);
+	
 	free(raw_header);
 	close(client->c_socket);
 	destroy_client(client);
@@ -158,10 +163,6 @@ void *http_thread_handler(void *client_structure)
 	return NULL;
 }
 
-/**
- * -1 == Malloc error
- *  -2 == Malformated header
- */
 static int parse_header(struct http_header_t **header, char *raw_header)
 {
 	int parse_status;

@@ -1,5 +1,5 @@
-#ifndef __HTTP_H
-#define __HTTP_H
+#ifndef __HTTP_REQUESTS_H
+#define __HTTP_REQUESTS_H
 
 #include <stdio.h>
 #include <string.h>
@@ -11,6 +11,6 @@ struct http_header_t {
 	char *path;
 	char *http_version;
 };
-void *http_thread_handler(void *client_structure);
+void *http_request_client_handler(void *client_structure);
 void destroy_http_structure(struct http_header_t *header);
 #endif
