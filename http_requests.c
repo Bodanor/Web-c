@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,27 +7,46 @@
 #include "http_response.h"
 #include "socket.h"
 
+static struct http_header_t *create_http_structure(void);
 static int parse_path(struct http_header_t *header, char *raw_header);
 static int parse_http_version(struct http_header_t *header, char *raw_header);
 static int read_header(int client_socket, char **header);
 static int parse_method(struct http_header_t *header, char *raw_header);
 static int parse_header(struct http_header_t **header, char *raw_header);
+static struct http_header_t *create_http_structure(void)
+{
+	struct http_header_t *tmp;
+
+	tmp = (struct http_header_t*)malloc(sizeof(struct http_header_t));
+	if (tmp == NULL)
+		return NULL;
+
+	tmp->http_version = NULL;
+	tmp->method = NULL;
+	tmp->path = NULL;
+
+	return tmp;
+}
 
 static int parse_http_version(struct http_header_t *header, char *raw_header)
 {
 	char *http_version;
-
+	
+	header->http_version = NULL;	
 	http_version = strtok(NULL, "\n");
 	if (http_version == NULL)
 		return -2;
 	if (strncmp(http_version, "HTTP", 4) !=0)
 		return -2;
-	
-	header->http_version = (char*)malloc(sizeof(char)*strlen(http_version) + 1);
+
+	header->http_version = (char*)malloc(sizeof(char)*strlen(http_version));
 	if (header->http_version == NULL)
 		return -1;
 
-	strcpy(header->http_version, http_version);
+	strncpy(header->http_version, http_version, strlen(http_version)-1);
+
+	/* strncpy doesn't append a null character if there is not one already present */
+	header->http_version[strlen(http_version)-1] = '\0';
 
 	return 0;
 }
@@ -96,20 +114,20 @@ static int read_header(int client_socket, char **header)
 	step = 2;
 
 	*header = (char*)malloc(sizeof(char)*HEADER_SIZE_CHUNK);
-	if (header == NULL) {
+	if (*header == NULL) {
 		return -1;
 	}
 	header_ptr = *header;
 
 	while(header_end != 1 && (bytes_read = read(client_socket, header_ptr, HEADER_SIZE_CHUNK)) != 0) {
 		if (header_total_size >= 8000) {
-			free(header);
+			free(*header);
 			return -2;
 		}
 		if (bytes_read == HEADER_SIZE_CHUNK) {
-			*header = (char*)realloc(header, sizeof(char)*HEADER_SIZE_CHUNK*step);
-			if (header == NULL) {
-				free(header);
+			*header = (char*)realloc(*header, sizeof(char)*HEADER_SIZE_CHUNK*step);
+			if (*header == NULL) {
+				free(*header);
 				return -1;
 			}
 			header_ptr = *header + (step *HEADER_SIZE_CHUNK) +1;
@@ -121,7 +139,7 @@ static int read_header(int client_socket, char **header)
 
 	*header = (char*)realloc(*header, header_total_size + 1);
 	if (*header == NULL) {
-		free(header);
+		free(*header);
 		return -1;
 	}
 	(*header)[header_total_size] = '\0';
@@ -141,21 +159,29 @@ void *http_request_client_handler(void *client_structure)
 
 	header_error_code = read_header(client->c_socket, &raw_header);
 	if (header_error_code == -1) {
+		send_internal_error_page(client, header);
 		/* Send a page saying that there was a server internal problem*/
 	}
+
 	else if (header_error_code == -2) {
+		//TODO : CHANGE THAT TO THE APPROPRIATE ERROR 
+		send_not_found_error_page(client, header);
 		/* Sent an error saying that the header is too long or mal formatted */
 	}
-	header_error_code = parse_header(&header, raw_header);
-	if (header_error_code == -1) {
-		/* Send server internal error page */
-	}
-	else if (header_error_code == -2) {
-		/* Send Malformated error page */
+	else {
+
+		header_error_code = parse_header(&header, raw_header);
+		if (header_error_code == -1) {
+			/* Send server internal error page */
+		}
+		else if (header_error_code == -2) {
+			/* Send Malformated error page */
+		}
+		else {
+			handle_response(header, client);
+		}
 	}
 
-	handle_response(header, client);
-	
 	free(raw_header);
 	close(client->c_socket);
 	destroy_client(client);
@@ -166,8 +192,8 @@ void *http_request_client_handler(void *client_structure)
 static int parse_header(struct http_header_t **header, char *raw_header)
 {
 	int parse_status;
-
-	*header = (struct http_header_t*)malloc(sizeof(struct http_header_t));
+	
+	*header = create_http_structure();
 	if (*header == NULL)
 		return -1;
 
@@ -179,7 +205,7 @@ static int parse_header(struct http_header_t **header, char *raw_header)
 	parse_status = parse_path(*header, raw_header);
 	if (parse_status != 0)
 		return parse_status;
-
+	
 	parse_status = parse_http_version(*header, raw_header);
 	if (parse_status != 0)
 		return parse_status;

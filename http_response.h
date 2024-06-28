@@ -7,8 +7,13 @@
 #include "http_requests.h"
 #include "socket.h"
 
-#define CONTENT_TYPE_STR "Content-Type : "
-#define CONTENT_LENGTH "Content-Length : "
+#define CONTENT_TYPE_STR "Content-type: "
+#define CONTENT_LENGTH "Content-Length: "
+
+#define DEFAULT_500_PATH "/defaults/500.html"
+#define DEFAULT_404_PATH "/defaults/404.html"
+#define DEFAULT_PAGE "/index.html"
+
 struct http_response_t {
 	/* Status line */
 	char *http_version;
@@ -33,4 +38,6 @@ struct http_response_t {
 void handle_response(struct http_header_t *request, struct client_t *client);
 struct http_response_t *alloc_response(void);
 void destroy_response(struct http_response_t *response);
+void send_internal_error_page(struct client_t *client, struct http_header_t *request);
+void send_not_found_error_page(struct client_t *client, struct http_header_t *request);
 #endif

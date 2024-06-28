@@ -96,7 +96,6 @@ struct client_t *accept_client(const int server_socket)
 	char host[NI_MAXHOST];
 	char port[NI_MAXSERV];
 	struct sockaddr_in client_address;
-	int socket_flags;
 
 	socklen_t client_addr_lenght;
 
